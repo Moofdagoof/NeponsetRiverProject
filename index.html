@@ -1,36 +1,59 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Neponset River Water Quality Map</title>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8">
+  <title>Neponset River Water Quality Monitoring</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     body {
       margin: 0;
-      padding: 0;
       font-family: Arial, sans-serif;
+      background-color: #f0f2f5;
+    }
+    header {
+      background-color: #0077cc;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    #description {
+      padding: 1rem;
+      text-align: center;
+      background-color: #ffffff;
+      border-bottom: 1px solid #ccc;
     }
     #map {
-      height: 100vh;
+      height: 90vh;
       width: 100%;
     }
     .popup-form input, .popup-form button {
       display: block;
-      width: 90%;
-      margin-bottom: 8px;
-      padding: 5px;
+      width: 95%;
+      margin-bottom: 10px;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
     }
     .popup-form button {
-      background-color: #007bff;
+      background-color: #28a745;
       color: white;
       border: none;
-      border-radius: 5px;
       cursor: pointer;
     }
   </style>
 </head>
 <body>
 
+<header>
+  <h1>Neponset River Water Quality Map</h1>
+</header>
+
+<div id="description">
+    <p>Click a location on the river to submit water quality test results!  
+    Please enter the pH, date, and time of your reading. Data will be used to monitor the health of the Neponset River ecosystem.</p>
+    <p><a href="https://docs.google.com/spreadsheets/d/1hqs7pkyyTZVX78mvL1JalJbMzbXY1tbUEyLNJTDfdQY/edit?usp=sharing" target="_blank" style="color: #0077cc; text-decoration: underline;">View Collected Data Here</a></p>
+  </div>
+  
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -41,13 +64,23 @@
     zoomSnap: 0.5
   });
 
-  const bounds = [[0, 0], [1000, 800]]; // Adjusted map bounds
+  const bounds = [[0, 0], [1000, 800]];
   const image = L.imageOverlay('https://i.im.ge/2025/04/28/viaH08.Neponset-Watershed-map-page-001.jpeg', bounds).addTo(map);
   map.fitBounds(bounds);
   map.setView([500, 400], map.getZoom() + 2);
 
+  // Red marker icon
+  const redIcon = new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
+
   function createPopupForm(locationName) {
-    const formHtml = `
+    return `
       <div class="popup-form">
         <h3>${locationName}</h3>
         <input type="number" id="ph" placeholder="pH level" required />
@@ -56,73 +89,53 @@
         <button onclick="submitData('${locationName}')">Submit</button>
       </div>
     `;
-    return formHtml;
   }
 
+  function submitData(locationName) {
+    const ph = document.getElementById('ph').value;
+    const date = document.getElementById('date').value;
+    const time = document.getElementById('time').value;
 
+    if (!ph || !date || !time) {
+      alert('Please fill out all fields.');
+      return;
+    }
 
+    const data = { location: locationName, ph, date, time };
 
-function submitData(locationName) {
-  const ph = document.getElementById('ph').value;
-  const date = document.getElementById('date').value;
-  const time = document.getElementById('time').value;
-
-  if (!ph || !date || !time) {
-    alert('Please fill out all fields.');
-    return;
+    fetch('https://script.google.com/macros/s/AKfycbzd6cXFetHKOoEyDvwAcOw44sCv-Bgl-L8Ei1pu_qxuo-lsIzgTeibtnzA5elRRduN1Tg/exec', {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    })
+    .then(() => {
+      alert('✅ Data submitted successfully! Thank you.');
+      map.closePopup();
+    })
+    .catch((error) => {
+      console.error('Error!', error.message);
+    });
   }
 
-  const data = {
-    location: locationName,
-    ph: ph,
-    date: date,
-    time: time
-  };
-
-  fetch('https://script.google.com/macros/s/AKfycbzd6cXFetHKOoEyDvwAcOw44sCv-Bgl-L8Ei1pu_qxuo-lsIzgTeibtnzA5elRRduN1Tg/exec', {
-  method: 'POST',
-  mode: 'no-cors',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(data)
-})
-  .then(() => {
-    alert(`Data submitted!\nLocation: ${locationName}\nPH: ${ph}\nDate: ${date}\nTime: ${time}`);
-    map.closePopup();
-  })
-  .catch((error) => {
-    console.error('Error!', error.message);
-  });
-}
-
-
-  // Add 3 pins
+  // Locations
   const locations = [
-    { name: "Walpole", coords: [375, 240] },
-    { name: "Quincy", coords: [705, 624] },
-    { name: "Dedham", coords: [573, 439]}
+    { name: "Milton Landing", coords: [400, 500] },
+    { name: "Lower Mills", coords: [600, 400] },
+    { name: "Dorchester Park", coords: [300, 300] }
   ];
 
   locations.forEach(loc => {
-    L.marker(loc.coords)
+    L.marker(loc.coords, { icon: redIcon })
       .addTo(map)
       .bindPopup(createPopupForm(loc.name));
   });
 
-
-
-
-  locations.forEach(loc => {
-  L.marker(loc.coords)
-    .addTo(map)
-    .bindPopup(createPopupForm(loc.name));
-});
-
-// Coordinate logger for mapping
-map.on('click', function(e) {
-  const { lat, lng } = e.latlng;
-  console.log(`[${lat.toFixed(0)}, ${lng.toFixed(0)}],`);
-});
-
+  // Coordinate logger (for adding future locations)
+  map.on('click', function(e) {
+    const { lat, lng } = e.latlng;
+    console.log(`[${lat.toFixed(0)}, ${lng.toFixed(0)}],`);
+  });
 </script>
 
 </body>
